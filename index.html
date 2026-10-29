@@ -199,6 +199,43 @@ main{padding-bottom:96px}.year{grid-template-columns:repeat(2,1fr)}
 .cal:not(.week) .chip,.cal:not(.week) .more{display:none}.cal:not(.week) .cnt{display:block;font-size:.75rem;color:var(--ac);font-weight:700;padding-left:.3rem}
 .day{min-height:56px}.cal.week{grid-template-columns:1fr}.cal.week .h{display:none}.cal.week .day{min-height:0}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+
+
+  /* Notes save button */
+.save-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.save-actions .pri {
+  min-height: 36px;
+  padding: 7px 15px;
+  border-radius: 9px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  box-shadow: none;
+  transition: background .2s ease;
+}
+
+.save-actions .pri.is-saved {
+  background: var(--ok);
+  color: #fff;
+}
+
+@media (max-width: 480px) {
+  .save-actions {
+    gap: 8px;
+  }
+
+  .save-actions .save-state {
+    font-size: 0.7rem;
+  }
+}
+
+  
 </style></head><body>
 <div class="app"><nav aria-label="Main"></nav><main id="m" tabindex="-1"></main></div>
 <dialog id="dlg" aria-labelledby="dt"><h2 id="dt">Task</h2>
@@ -339,7 +376,25 @@ function notesV(){
  const titleForList=nf.sub|| (nf.s?subName(nf.s):'All notes');
  const lst=`<section class="nl" aria-label="Notes list"><div class="nl-top"><h2>${esc(titleForList)}</h2><span class="nl-count">${L.length} ${L.length===1?'note':'notes'}</span></div><input id="nq" class="nl-search" type="search" placeholder="Search notes…" aria-label="Search notes" value="${esc(nq)}"><div class="nl-items">${L.map(n=>`<button class="ni ${n.id===openN?'on':''}" data-nid="${esc(n.id)}" aria-current="${n.id===openN?'true':'false'}"><b class="nt">${esc(n.title||'Untitled note')}</b><span>${esc(n.date?fd(n.date):'Undated')}${n.s?' · '+esc(subName(n.s)):''}${n.sub?' › '+esc(n.sub):''}</span><small>${esc(String(n.body||'').trim().slice(0,130)||'No text yet — open to start writing.')}</small></button>`).join('')}</div></section>`;
  const subs=(N.subjects.find(s=>s.id===cur.s)||{subs:[]}).subs||[];
- const ed=`<section class="ed" aria-label="Note editor"><div class="ed-head"><button class="ghost back" data-act="nback">‹ Notes list</button><span class="ed-label">Writing space</span><span id="noteSaveState" class="save-state" role="status" aria-live="polite">Saved</span></div><input id="nt" class="ntitle" maxlength="180" value="${esc(cur.title||'')}" placeholder="Untitled note" aria-label="Note title"><div class="row"><select id="nsj" aria-label="Subject"><option value="">No subject</option>${N.subjects.map(s=>`<option value="${esc(s.id)}" ${cur.s===s.id?'selected':''}>${esc(s.name)}</option>`).join('')}</select><select id="nsb" aria-label="Topic" ${!cur.s?'disabled':''}><option value="">No topic</option>${subs.map(x=>`<option value="${esc(x)}" ${cur.sub===x?'selected':''}>${esc(x)}</option>`).join('')}</select></div><textarea id="nb" placeholder="Start writing… your changes save automatically." aria-label="Note content">${esc(cur.body||'')}</textarea><div class="ed-footer"><span class="note">${cur.date?fd(cur.date):'Undated'} · <span id="noteUpdated">Saved automatically</span></span><button class="ghost" data-act="ndel">${armK==='n'?'Confirm delete':'Delete note'}</button></div></section>`;
+ const ed=`<section class="ed" aria-label="Note editor"><div class="ed-head"><button class="ghost back" data-act="nback">‹ Notes list</button><span class="ed-label">Writing space</span>
+
+ 
+<div class="save-actions">
+  <span id="noteSaveState" class="save-state"
+    role="status" aria-live="polite">Ready</span>
+
+  <button
+    type="button"
+    id="noteSaveButton"
+    class="pri"
+    data-act="nsave">
+    Save note
+  </button>
+</div>
+
+
+ 
+ </div><input id="nt" class="ntitle" maxlength="180" value="${esc(cur.title||'')}" placeholder="Untitled note" aria-label="Note title"><div class="row"><select id="nsj" aria-label="Subject"><option value="">No subject</option>${N.subjects.map(s=>`<option value="${esc(s.id)}" ${cur.s===s.id?'selected':''}>${esc(s.name)}</option>`).join('')}</select><select id="nsb" aria-label="Topic" ${!cur.s?'disabled':''}><option value="">No topic</option>${subs.map(x=>`<option value="${esc(x)}" ${cur.sub===x?'selected':''}>${esc(x)}</option>`).join('')}</select></div><textarea id="nb" placeholder="Start writing… your changes save automatically." aria-label="Note content">${esc(cur.body||'')}</textarea><div class="ed-footer"><span class="note">${cur.date?fd(cur.date):'Undated'} · <span id="noteUpdated">Saved automatically</span></span><button class="ghost" data-act="ndel">${armK==='n'?'Confirm delete':'Delete note'}</button></div></section>`;
  return `${heading}${mobile}<div class="nw mobile-${notesStage}">${tree}${lst}${ed}</div>`;
 }
 /* STICKIES */
@@ -382,9 +437,59 @@ function addSub(){const i=$('#nsub'),v=i&&i.value.trim(),s=N.subjects.find(x=>x.
 const newNote=o=>{nq='';const n={id:uid(),title:'',body:'',s:nf.s,sub:nf.sub,date:TD(),upd:Date.now(),...o};N.notes.push(n);save();openN=n.id;notesStage='editor';render();const title=$('#nt');if(title)title.focus();return n};
 document.addEventListener('keydown',e=>{if(e.key!=='Enter')return;const i=e.target.id;if(i==='qa')addQ();else if(i==='ns')addSj();else if(i==='nsub')addSub()});
 const keep=(id,fn)=>{const p=$('#'+id).selectionStart;fn();render();const n=$('#'+id);n.focus();n.setSelectionRange(p,p)};
-document.addEventListener('input',e=>{const i=e.target.id,c=N.notes.find(n=>n.id===openN);
- if(i==='fq')keep('fq',()=>f.q=e.target.value);else if(i==='nq')keep('nq',()=>nq=e.target.value);
- else if(c&&(i==='nt'||i==='nb')){c[i==='nt'?'title':'body']=e.target.value;c.upd=Date.now();const state=$('#noteSaveState'),updated=$('#noteUpdated');if(state)state.textContent='Saving…';if(updated)updated.textContent='Saving…';save();if(state)state.textContent='Saved';if(updated)updated.textContent='Saved just now';if(i==='nt'){const el=document.querySelector(`[data-nid="${c.id}"] .nt`);if(el)el.textContent=e.target.value||'Untitled note';}}});
+document.addEventListener('input', e => {
+  const i = e.target.id;
+  const c = N.notes.find(n => n.id === openN);
+
+  if (i === 'fq') {
+    keep('fq', () => f.q = e.target.value);
+  } 
+  else if (i === 'nq') {
+    keep('nq', () => nq = e.target.value);
+  } 
+  else if (c && (i === 'nt' || i === 'nb')) {
+    // Update the note data
+    c[i === 'nt' ? 'title' : 'body'] = e.target.value;
+    c.upd = Date.now();
+
+    const state = document.getElementById('noteSaveState');
+    const updated = document.getElementById('noteUpdated');
+    const button = document.getElementById('noteSaveButton');
+
+    // Show the saving state
+    if (state) state.textContent = 'Saving…';
+    if (updated) updated.textContent = 'Saving…';
+
+    if (button) {
+      button.textContent = 'Saving…';
+      button.classList.remove('is-saved');
+    }
+
+    // Save to localStorage
+    save();
+
+    // Show confirmation
+    if (state) state.textContent = 'Saved successfully';
+    if (updated) updated.textContent = 'Saved just now';
+
+    if (button) {
+      button.textContent = 'Saved ✓';
+      button.classList.add('is-saved');
+    }
+
+    // Update the title in the notes list
+    if (i === 'nt') {
+      const el = document.querySelector(
+        `[data-nid="${c.id}"] .nt`
+      );
+
+      if (el) {
+        el.textContent = e.target.value || 'Untitled note';
+      }
+    }
+  }
+});
+  
 document.addEventListener('change',e=>{const i=e.target.id,c=N.notes.find(n=>n.id===openN);
  if(i==='fc'){f.cat=e.target.value;render()}else if(i==='fp'){f.pri=e.target.value;render()}else if(c&&i==='nsj'){c.s=e.target.value;c.sub='';save();render()}else if(c&&i==='nsb'){c.sub=e.target.value;save();render()}});
 document.addEventListener('click',e=>{const t0=e.target;
@@ -402,6 +507,35 @@ document.addEventListener('click',e=>{const t0=e.target;
  const b=t0.closest('[data-act]');
  if(!b){const dy=t0.closest('[data-day]');if(dy){selDay=dy.dataset.day;render()}return}
  const a=b.dataset.act,c=b.closest('.card'),id=c&&c.dataset.id,t=T.find(x=>x.id===id);
+
+if (a === 'nsave') {
+  const note = N.notes.find(n => n.id === openN);
+
+  if (!note) {
+    toast('No note selected');
+    return;
+  }
+
+  note.upd = Date.now();
+  save();
+
+  const button = document.getElementById('noteSaveButton');
+  const state = document.getElementById('noteSaveState');
+  const updated = document.getElementById('noteUpdated');
+
+  if (button) {
+    button.textContent = 'Saved ✓';
+    button.classList.add('is-saved');
+  }
+
+  if (state) state.textContent = 'Saved successfully';
+  if (updated) updated.textContent = 'Saved just now';
+
+  toast('Note saved successfully');
+  return;
+}
+
+                                      
  if(!/^del|^ndel|^wipe/.test(a))armK=null;
  if(a==='tog')setDone(id,b.checked);else if(a==='tog2')setDone(id,!t.done);else if(a==='exp'){openT.has(id)?openT.delete(id):openT.add(id);render()}
  else if(a==='edit')openDlg(id);else if(a==='tod'){t.due=TD();save();render();toast('Moved to today')}
