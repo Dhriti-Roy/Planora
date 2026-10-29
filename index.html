@@ -71,17 +71,269 @@ main{padding:1.6rem clamp(1rem,3vw,2.4rem);max-width:1260px;width:100%}
 .yd.has::after,.yd.all::after{content:"";position:absolute;left:50%;bottom:1px;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--ac)}.yd.all::after{background:var(--ok)}
 .yd.now{background:var(--ac);color:var(--acx);font-weight:700}.yd.sel{outline:2px solid var(--ac)}
 /* notes */
-.nw{display:grid;grid-template-columns:210px 290px 1fr;gap:1rem;align-items:start}
-.tree,.nl{display:flex;flex-direction:column;gap:2px}
-.tr{display:flex;justify-content:space-between;background:none;border:0;text-align:left;padding:.5rem .7rem;border-radius:10px;color:var(--mu);font-weight:600}
-.tr.on{background:var(--soft);color:var(--ac)}.tr.sb{margin-left:1rem;font-size:.9rem}
-.gl{font-size:.8rem;color:var(--mu);margin:.8rem .7rem .2rem;font-weight:700}.qa.small{margin:.3rem 0}.qa.small input{min-height:36px;font-size:.88rem}
-.ni{text-align:left;background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:.6rem .75rem;margin-bottom:.4rem;display:flex;flex-direction:column;box-shadow:var(--sh)}
-.ni.on{border-color:var(--ac);outline:1px solid var(--ac)}.ni span,.ni small{color:var(--mu);font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ed{background:var(--sf);border:1px solid var(--bd);border-radius:18px;padding:1.1rem;display:flex;flex-direction:column;gap:.6rem;box-shadow:var(--sh)}
-.ntitle{font-size:1.4rem;font-weight:800;border:0;border-bottom:1px solid var(--bd);background:none;padding:.3rem 0;width:100%;letter-spacing:-.02em}
-.ed textarea{min-height:46vh;border:1px solid var(--bd);border-radius:12px;background:var(--bg);padding:.8rem;line-height:1.65;resize:vertical}
-.ed .row select{flex:1}.back{display:none;align-self:flex-start}
+/* NOTES — clean, minimal workspace */
+let notesStage = 'tree';
+
+const subName = id =>
+  (N.subjects.find(s => s.id === id) || {}).name || '';
+
+function notesV() {
+  const matches = n =>
+    (!nf.s || (
+      n.s === nf.s &&
+      (!nf.sub || n.sub === nf.sub)
+    )) &&
+    (!nq || (
+      String(n.title || '') + ' ' + String(n.body || '')
+    ).toLowerCase().includes(nq.toLowerCase()));
+
+  const L = N.notes
+    .filter(matches)
+    .sort((a, b) => (b.upd || 0) - (a.upd || 0));
+
+  const cur = N.notes.find(n => n.id === openN);
+  const cs = id => N.notes.filter(n => n.s === id).length;
+
+  const tree = `
+    <div class="tree" role="tree" aria-label="Notes folders">
+      <button class="tr ${!nf.s ? 'on' : ''}"
+        data-nf="all" role="treeitem"
+        aria-selected="${!nf.s}">
+        <span style="background:transparent;min-width:0;padding:0;color:inherit">
+          All notes
+        </span>
+        <span>${N.notes.length}</span>
+      </button>
+
+      <p class="gl">Your subjects</p>
+
+      ${
+        N.subjects.length
+          ? N.subjects.map(s => `
+              <button class="tr ${
+                nf.s === s.id && !nf.sub ? 'on' : ''
+              }"
+                data-nf="s" data-sid="${esc(s.id)}"
+                role="treeitem"
+                aria-selected="${nf.s === s.id && !nf.sub}">
+                <span style="background:transparent;min-width:0;padding:0;color:inherit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                  ${esc(s.name)}
+                </span>
+                <span>${cs(s.id)}</span>
+              </button>
+
+              ${
+                nf.s === s.id
+                  ? `
+                    <div role="group" aria-label="${esc(s.name)} topics">
+                      ${(s.subs || []).map(x => `
+                        <button class="tr sb ${
+                          nf.sub === x ? 'on' : ''
+                        }"
+                          data-nf="sub"
+                          data-sid="${esc(s.id)}"
+                          data-sub="${esc(x)}"
+                          role="treeitem"
+                          aria-selected="${nf.sub === x}">
+                          <span style="background:transparent;min-width:0;padding:0;color:inherit">
+                            ${esc(x)}
+                          </span>
+                          <span>
+                            ${N.notes.filter(n => n.s === s.id && n.sub === x).length}
+                          </span>
+                        </button>
+                      `).join('')}
+                    </div>
+
+                    <div class="qa small">
+                      <input id="nsub" maxlength="80"
+                        placeholder="Add a topic…"
+                        aria-label="New topic for ${esc(s.name)}">
+                      <button class="ghost" data-act="addsub">Add</button>
+                    </div>
+                  `
+                  : ''
+              }
+            `).join('')
+          : '<p class="note" style="padding:.3rem .6rem">Create a subject when you want to organise related notes.</p>'
+      }
+
+      <div class="qa small">
+        <input id="ns" maxlength="80"
+          placeholder="New subject…"
+          aria-label="New subject">
+        <button class="ghost" data-act="addsj">Add</button>
+      </div>
+
+      ${
+        nf.s
+          ? `<button class="ghost" data-act="delsj">
+               ${armK === 'sj' ? 'Confirm delete subject' : 'Delete subject'}
+             </button>`
+          : ''
+      }
+    </div>
+  `;
+
+  const heading = `
+    <div class="notes-heading">
+      <div>
+        <h1>Notes</h1>
+        <p class="sub">Your thoughts, organised simply.</p>
+      </div>
+      <button class="pri" data-act="nnew">＋ New note</button>
+    </div>
+  `;
+
+  const mobileNav = `
+    <div class="notes-mobile-nav" role="group" aria-label="Notes panels">
+      <button class="ghost" data-nstage="tree"
+        aria-pressed="${notesStage === 'tree'}">Folders</button>
+      <button class="ghost" data-nstage="list"
+        aria-pressed="${notesStage === 'list'}">Notes (${L.length})</button>
+      <button class="ghost" data-nstage="editor"
+        aria-pressed="${notesStage === 'editor'}">Editor</button>
+    </div>
+  `;
+
+  /*
+   * One unified empty state:
+   * No separate empty list and empty editor boxes.
+   * The header remains the only place to create a note.
+   */
+  if (L.length === 0) {
+    const message = nq
+      ? 'Try another search or clear your search to find your notes.'
+      : nf.sub
+        ? 'This topic is ready for your ideas.'
+        : nf.s
+          ? 'Keep this subject organised by adding your first note.'
+          : 'A thought, an idea, a plan. Give it a place to live.';
+
+    return `
+      ${heading}
+      ${mobileNav}
+      <div class="nw mobile-${notesStage}">
+        ${tree}
+
+        <section class="notes-zero">
+          <div class="notes-zero-inner">
+            <div class="notes-zero-icon" aria-hidden="true">✎</div>
+            <h2>${nq ? 'No matching notes' : 'A little room to think'}</h2>
+            <p>${message}</p>
+          </div>
+        </section>
+      </div>
+    `;
+  }
+
+  const lst = `
+    <div class="nl" aria-label="Notes list">
+      <div class="tools">
+        <input id="nq" type="search"
+          placeholder="Search notes…"
+          aria-label="Search notes"
+          value="${esc(nq)}">
+      </div>
+
+      ${L.map(n => `
+        <button class="ni ${n.id === openN ? 'on' : ''}"
+          data-nid="${esc(n.id)}"
+          aria-current="${n.id === openN ? 'true' : 'false'}">
+          <b class="nt">${esc(n.title || 'Untitled note')}</b>
+
+          <span>
+            ${esc(n.date ? fd(n.date) : 'Undated')}
+            ${n.s ? ' · ' + esc(subName(n.s)) : ''}
+            ${n.sub ? ' › ' + esc(n.sub) : ''}
+          </span>
+
+          <small>${esc(
+            String(n.body || '').trim().slice(0, 150) ||
+            'No preview yet'
+          )}</small>
+        </button>
+      `).join('')}
+    </div>
+  `;
+
+  const subs = (
+    N.subjects.find(s => s.id === (cur && cur.s)) || { subs: [] }
+  ).subs || [];
+
+  const ed = cur
+    ? `
+      <section class="ed" aria-label="Note editor">
+        <div class="ed-head">
+          <button class="ghost back" data-act="nback">‹ Notes list</button>
+          <span class="ed-label">Writing space</span>
+          <span id="noteSaveState" class="save-state"
+            role="status" aria-live="polite">Saved</span>
+        </div>
+
+        <input id="nt" class="ntitle" maxlength="180"
+          value="${esc(cur.title || '')}"
+          placeholder="Untitled note"
+          aria-label="Note title">
+
+        <div class="row">
+          <select id="nsj" aria-label="Subject">
+            <option value="">No subject</option>
+            ${N.subjects.map(s => `
+              <option value="${esc(s.id)}"
+                ${cur.s === s.id ? 'selected' : ''}>
+                ${esc(s.name)}
+              </option>
+            `).join('')}
+          </select>
+
+          <select id="nsb" aria-label="Topic" ${!cur.s ? 'disabled' : ''}>
+            <option value="">No topic</option>
+            ${subs.map(x => `
+              <option value="${esc(x)}"
+                ${cur.sub === x ? 'selected' : ''}>
+                ${esc(x)}
+              </option>
+            `).join('')}
+          </select>
+        </div>
+
+        <textarea id="nb"
+          placeholder="Start writing…"
+          aria-label="Note content">${esc(cur.body || '')}</textarea>
+
+        <div class="ed-footer">
+          <span class="note">
+            ${cur.date ? fd(cur.date) : 'Undated'}
+            · <span id="noteUpdated">Saved automatically</span>
+          </span>
+
+          <button class="ghost" data-act="ndel">
+            ${armK === 'n' ? 'Confirm delete' : 'Delete note'}
+          </button>
+        </div>
+      </section>
+    `
+    : `
+      <section class="ed notes-blank" aria-label="Note preview">
+        <div class="empty">
+          <h2>Select a note</h2>
+          <p>Choose a note from your list to read or edit it here.</p>
+        </div>
+      </section>
+    `;
+
+  return `
+    ${heading}
+    ${mobileNav}
+    <div class="nw mobile-${notesStage}">
+      ${tree}
+      ${lst}
+      ${ed}
+    </div>
+  `;
+}
+
 /* stickies */
 .stbar{display:flex;align-items:center;gap:.5rem;margin-bottom:.9rem;font-weight:700;font-size:.9rem}
 .sw{width:28px;height:28px;border-radius:50%;border:2px solid rgba(0,0,0,.12);padding:0;min-height:28px}
